@@ -15,7 +15,7 @@ pipeline {
             steps {
                 sh '''
                     export NVM_DIR="${WORKSPACE}/.nvm"
-                    source $NVM_DIR/nvm.sh
+                    . $NVM_DIR/nvm.sh
                     nvm use $NODE_VERSION
                     node -v
                     npm -v
@@ -27,7 +27,7 @@ pipeline {
             steps {
                 sh '''
                     export NVM_DIR="${WORKSPACE}/.nvm"
-                    source $NVM_DIR/nvm.sh
+                    . $NVM_DIR/nvm.sh
                     nvm use $NODE_VERSION
                     npm run build
                 '''
