@@ -1,21 +1,24 @@
 pipeline {
     agent any
     environment {
-        NVM_DIR = "/home/ext_rmadan_vecv_in/.nvm"
+        NODE_VERSION = "v18.20.7"
+        NODE_DIR = "${WORKSPACE}/.node"
+        PATH = "${WORKSPACE}/.node/bin:${env.PATH}"
     }
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/feelio.git', branch: 'main'
+                git credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
             }
         }
-        stage('Setup Node') {
+        stage('Setup NodeJS') {
             steps {
                 sh '''
-                    export NVM_DIR="$HOME/.nvm"
-                    source "$NVM_DIR/nvm.sh"
-                    nvm use 18.20.7
-                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
+                    echo "Downloading NodeJS..."
+                    curl -o node.tar.xz https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz
+                    mkdir -p ${NODE_DIR}
+                    tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
+                    rm node.tar.xz
                     node -v
                     npm -v
                 '''
@@ -24,10 +27,6 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    export NVM_DIR="$HOME/.nvm"
-                    source "$NVM_DIR/nvm.sh"
-                    nvm use 18.20.7
-                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
                     npm install
                 '''
             }
@@ -35,10 +34,6 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                    export NVM_DIR="$HOME/.nvm"
-                    source "$NVM_DIR/nvm.sh"
-                    nvm use 18.20.7
-                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
                     npm run build
                 '''
             }
