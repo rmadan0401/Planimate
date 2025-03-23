@@ -2,13 +2,11 @@ pipeline {
     agent any
 
     environment {
-        // NVM & Node.js Setup
+        // NVM Setup
         NVM_DIR = "/home/ext_rmadan_vecv_in/.nvm"
-        PATH = "${NVM_DIR}/versions/node/v18.20.7/bin:/home/ext_rmadan_vecv_in/.yarn/bin:$PATH"
 
         // Android SDK Setup
         ANDROID_SDK_ROOT = "/home/ext_rmadan_vecv_in/android-sdk"
-        PATH = "${ANDROID_SDK_ROOT}/cmdline-tools/tools/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/emulator:$PATH"
 
         // GitHub Credentials
         GIT_CREDENTIALS_ID = "github-credentials"
@@ -18,7 +16,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/wfarat/Planimate.git',
+                    url: 'https://github.com/rmadan0401/Planimate.git',
                     credentialsId: "${env.GIT_CREDENTIALS_ID}"
             }
         }
@@ -26,18 +24,15 @@ pipeline {
         stage('Setup Node & Yarn') {
             steps {
                 echo "Loading NVM and setting Node.js v18"
-
-                // Load NVM and use Node
                 sh '''
                     export NVM_DIR=/home/ext_rmadan_vecv_in/.nvm
                     . $NVM_DIR/nvm.sh
                     nvm use 18
+                    export PATH=$NVM_DIR/versions/node/v18.20.7/bin:$PATH
+                    
                     node -v
                     npm -v
-                '''
-
-                // Check Yarn
-                sh '''
+                    
                     yarn --version || npm install -g yarn
                     yarn set version 3.6.4
                     yarn --version
@@ -51,7 +46,8 @@ pipeline {
                     export NVM_DIR=/home/ext_rmadan_vecv_in/.nvm
                     . $NVM_DIR/nvm.sh
                     nvm use 18
-                    
+                    export PATH=$NVM_DIR/versions/node/v18.20.7/bin:$PATH
+
                     yarn install
                 '''
             }
@@ -63,7 +59,8 @@ pipeline {
                     export NVM_DIR=/home/ext_rmadan_vecv_in/.nvm
                     . $NVM_DIR/nvm.sh
                     nvm use 18
-                    
+                    export PATH=$NVM_DIR/versions/node/v18.20.7/bin:$PATH
+
                     nohup yarn start > metro.log 2>&1 &
                 '''
             }
@@ -75,12 +72,22 @@ pipeline {
                     export NVM_DIR=/home/ext_rmadan_vecv_in/.nvm
                     . $NVM_DIR/nvm.sh
                     nvm use 18
-                    
+                    export PATH=$NVM_DIR/versions/node/v18.20.7/bin:$PATH
+
                     export ANDROID_SDK_ROOT=/home/ext_rmadan_vecv_in/android-sdk
-                    export PATH=$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH
+                    export PATH=$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$PATH:$PATH
 
                     yarn android
                 '''
+            }
+        }
+
+        stage('Archive APK') {
+            steps {
+                script {
+                    // Archive all APK files under android/app/build/outputs/
+                    archiveArtifacts artifacts: 'android/app/build/outputs/**/*.apk', fingerprint: true
+                }
             }
         }
     }
