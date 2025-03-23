@@ -10,14 +10,10 @@ pipeline {
         PATH = "${WORKSPACE}/.nvm/versions/node/v${NODE_VERSION}/bin:$PATH"
     }
 
-    tools {
-        // No global tools since we are using NVM
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: "github-credentials", url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
+                git credentialsId: "${GITHUB_CREDENTIALS}", url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
             }
         }
 
