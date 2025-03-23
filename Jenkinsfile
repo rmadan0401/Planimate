@@ -1,55 +1,66 @@
 pipeline {
-  agent any
-  environment {
-    NODE_VERSION = "18.20.7"
-  }
-  stages {
-    stage('Clone Repo') {
-      steps {
-        git branch: 'main', url: 'https://github.com/wfarat/Planimate.git', credentialsId: 'github-credentials'
-      }
+    agent any
+
+    environment {
+        NODE_VERSION = "18.20.7"
+        YARN_VERSION = "3.6.4"
+        NVM_DIR = "${WORKSPACE}/.nvm"
+        NODE_DIR = "${WORKSPACE}/.node"
+        PATH = "${NODE_DIR}/bin:${PATH}"
     }
 
-    stage('Setup Node and Yarn Locally') {
-      steps {
-        sh '''
-          export NVM_DIR=$WORKSPACE/.nvm
-          mkdir -p $NVM_DIR
-          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-          . $NVM_DIR/nvm.sh
-          nvm install ${NODE_VERSION}
-          nvm use ${NODE_VERSION}
-          npm install -g yarn@3.6.4
-          echo ". $NVM_DIR/nvm.sh && nvm use ${NODE_VERSION}" > $WORKSPACE/.nvmrc
-        '''
-      }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/rmadan0401/Planimate.git', credentialsId: 'github-credentials'
+            }
+        }
+
+        stage('Install Node & Yarn Locally') {
+            steps {
+                sh '''
+                    # Download and extract NodeJS
+                    mkdir -p ${NODE_DIR}
+                    curl -o node.tar.xz https://nodejs.org/dist/v18.20.7/node-v18.20.7-linux-x64.tar.xz
+                    tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
+                    rm node.tar.xz
+
+                    # Check Node and NPM versions
+                    ${NODE_DIR}/bin/node -v
+                    ${NODE_DIR}/bin/npm -v
+
+                    # Install Yarn Berry
+                    corepack enable
+                    corepack prepare yarn@${YARN_VERSION} --activate
+
+                    yarn -v
+                '''
+            }
+        }
+
+        stage('Yarn Install') {
+            steps {
+                sh 'yarn install'
+            }
+        }
+
+        stage('Start Metro Bundler') {
+            steps {
+                sh 'nohup yarn start &'
+            }
+        }
+
+        stage('Build Android') {
+            steps {
+                sh 'yarn android'
+            }
+        }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh '''
-          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
-          yarn install --network-timeout 100000
-        '''
-      }
+    post {
+        always {
+            echo "Cleaning up Metro Bundler..."
+            sh "pkill -f 'react-native/cli.js start' || true"
+        }
     }
-
-    stage('Start Metro Bundler') {
-      steps {
-        sh '''
-          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
-          nohup yarn start > metro.log 2>&1 &
-        '''
-      }
-    }
-
-    stage('Build Android') {
-      steps {
-        sh '''
-          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
-          yarn android
-        '''
-      }
-    }
-  }
 }
