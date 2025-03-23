@@ -1,50 +1,45 @@
 pipeline {
     agent any
-
     environment {
-        NVM_DIR = '/home/ext_rmadan_vecv_in/.nvm'
+        NVM_DIR = "/home/ext_rmadan_vecv_in/.nvm"
     }
-
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/rmadan0401/Planimate.git', credentialsId: 'github-credentials'
+                git credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/feelio.git', branch: 'main'
             }
         }
-
-        stage('Set Node Version') {
+        stage('Setup Node') {
             steps {
                 sh '''
-                    export NVM_DIR="$NVM_DIR"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                    export NVM_DIR="$HOME/.nvm"
+                    source "$NVM_DIR/nvm.sh"
                     nvm use 18.20.7
+                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
                     node -v
                     npm -v
                 '''
             }
         }
-
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    export NVM_DIR="$NVM_DIR"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                    export NVM_DIR="$HOME/.nvm"
+                    source "$NVM_DIR/nvm.sh"
                     nvm use 18.20.7
-                    corepack enable
-                    yarn --version
-                    yarn install
+                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
+                    npm install
                 '''
             }
         }
-
-        stage('Build Android') {
+        stage('Build') {
             steps {
                 sh '''
-                    export NVM_DIR="$NVM_DIR"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                    export NVM_DIR="$HOME/.nvm"
+                    source "$NVM_DIR/nvm.sh"
                     nvm use 18.20.7
-                    cd android
-                    ./gradlew assembleDebug
+                    export PATH="$NVM_DIR/versions/node/v18.20.7/bin:$PATH"
+                    npm run build
                 '''
             }
         }
