@@ -1,46 +1,55 @@
 pipeline {
-    agent any
-    environment {
-        NODE_OPTIONS = "--max_old_space_size=4096"
-        PATH = "${env.PATH}:/home/ext_rmadan_vecv_in/.yarn/bin:/home/ext_rmadan_vecv_in/.config/yarn/global/node_modules/.bin"
+  agent any
+  environment {
+    NODE_VERSION = "18.20.7"
+  }
+  stages {
+    stage('Clone Repo') {
+      steps {
+        git branch: 'main', url: 'https://github.com/wfarat/Planimate.git', credentialsId: 'github-credentials'
+      }
     }
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/wfarat/Planimate.git', credentialsId: 'github-credentials'
-            }
-        }
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                    echo "Node version:"
-                    node -v
-                    echo "Yarn version:"
-                    yarn -v
 
-                    # Clean install with Yarn
-                    yarn install --immutable
-                '''
-            }
-        }
-        stage('Build Android') {
-            steps {
-                sh '''
-                    # Start Metro bundler in background
-                    nohup yarn start &
+    stage('Setup Node and Yarn Locally') {
+      steps {
+        sh '''
+          export NVM_DIR=$WORKSPACE/.nvm
+          mkdir -p $NVM_DIR
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+          . $NVM_DIR/nvm.sh
+          nvm install ${NODE_VERSION}
+          nvm use ${NODE_VERSION}
+          npm install -g yarn@3.6.4
+          echo ". $NVM_DIR/nvm.sh && nvm use ${NODE_VERSION}" > $WORKSPACE/.nvmrc
+        '''
+      }
+    }
 
-                    # Give Metro some time to start
-                    sleep 10
-                    
-                    # Build Android
-                    yarn android || true  # Android emulator might not be available, avoid failing job
-                '''
-            }
-        }
+    stage('Install Dependencies') {
+      steps {
+        sh '''
+          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
+          yarn install --network-timeout 100000
+        '''
+      }
     }
-    post {
-        always {
-            sh 'pkill -f "node"' // Kill Metro bundler after job
-        }
+
+    stage('Start Metro Bundler') {
+      steps {
+        sh '''
+          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
+          nohup yarn start > metro.log 2>&1 &
+        '''
+      }
     }
+
+    stage('Build Android') {
+      steps {
+        sh '''
+          . $WORKSPACE/.nvm/nvm.sh && nvm use ${NODE_VERSION}
+          yarn android
+        '''
+      }
+    }
+  }
 }
