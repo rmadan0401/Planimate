@@ -44,17 +44,22 @@ pipeline {
             }
         }
 
-        stage('Start Metro Bundler') {
+    
+        stage('Fix gradlew Permissions') {
             steps {
-                sh 'nohup yarn start &'
+                sh 'chmod +x android/gradlew'
             }
         }
 
-        stage('Build Android') {
+        stage('Build Android APK') {
             steps {
-                sh 'yarn android'
+                sh '''
+                    cd android
+                    ./gradlew assembleDebug
+                '''
             }
         }
+
     }
 
     post {
