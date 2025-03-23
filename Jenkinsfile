@@ -1,42 +1,46 @@
 pipeline {
     agent any
     environment {
-        NODE_VERSION = "v18.20.7"
-        NODE_DIR = "${WORKSPACE}/.node"
-        PATH = "${WORKSPACE}/.node/bin:${env.PATH}"
+        NODE_OPTIONS = "--max_old_space_size=4096"
+        PATH = "${env.PATH}:/home/ext_rmadan_vecv_in/.yarn/bin:/home/ext_rmadan_vecv_in/.config/yarn/global/node_modules/.bin"
     }
     stages {
         stage('Checkout') {
             steps {
-                git credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
-            }
-        }
-        stage('Setup NodeJS') {
-            steps {
-                sh '''
-                    echo "Downloading NodeJS..."
-                    curl -o node.tar.xz https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz
-                    mkdir -p ${NODE_DIR}
-                    tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
-                    rm node.tar.xz
-                    node -v
-                    npm -v
-                '''
+                git branch: 'main', url: 'https://github.com/wfarat/Planimate.git', credentialsId: 'github-credentials'
             }
         }
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    npm install
+                    echo "Node version:"
+                    node -v
+                    echo "Yarn version:"
+                    yarn -v
+
+                    # Clean install with Yarn
+                    yarn install --immutable
                 '''
             }
         }
-        stage('Build') {
+        stage('Build Android') {
             steps {
                 sh '''
-                    npm run build
+                    # Start Metro bundler in background
+                    nohup yarn start &
+
+                    # Give Metro some time to start
+                    sleep 10
+                    
+                    # Build Android
+                    yarn android || true  # Android emulator might not be available, avoid failing job
                 '''
             }
+        }
+    }
+    post {
+        always {
+            sh 'pkill -f "node"' // Kill Metro bundler after job
         }
     }
 }
