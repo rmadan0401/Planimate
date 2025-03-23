@@ -2,77 +2,69 @@ pipeline {
     agent any
 
     environment {
-        NVM_DIR = "$HOME/.nvm"
-        NODE_VERSION = "18.19.1" // specify the installed Node version
+        NVM_DIR = "${WORKSPACE}/.nvm"
+        NODE_VERSION = "18.20.0"
         YARN_VERSION = "3.6.4"
-        ANDROID_SDK_ROOT = "/opt/android-sdk" // Update this path as per your Jenkins setup
-        JAVA_HOME = "/usr/lib/jvm/java-11-openjdk-amd64" // Update if needed
-        PATH = "${env.NVM_DIR}/versions/node/v${NODE_VERSION}/bin:${env.PATH}"
+        GITHUB_CREDENTIALS = "github-credentials"
+        ANDROID_HOME = "/var/lib/jenkins/Android/Sdk"
+        PATH = "${WORKSPACE}/.nvm/versions/node/v${NODE_VERSION}/bin:$PATH"
+    }
+
+    tools {
+        // No global tools since we are using NVM
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/Planimate.git'
+                git credentialsId: "github-credentials", url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
             }
         }
 
-        stage('Set Node & Yarn') {
+        stage('Setup Node & Yarn') {
             steps {
-                script {
-                    sh '''
-                    export NVM_DIR="$HOME/.nvm"
-                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                sh '''
+                    export NVM_DIR="$WORKSPACE/.nvm"
+                    mkdir -p $NVM_DIR
+                    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+                    . $NVM_DIR/nvm.sh
+                    nvm install $NODE_VERSION
                     nvm use $NODE_VERSION
-
                     corepack enable
-                    yarn set version ${YARN_VERSION}
-                    '''
-                }
+                    corepack prepare yarn@$YARN_VERSION --activate
+                    yarn -v
+                    node -v
+                    npm -v
+                '''
             }
         }
 
         stage('Install Dependencies') {
             steps {
                 sh '''
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                nvm use $NODE_VERSION
-                
-                yarn install
+                    export NVM_DIR="$WORKSPACE/.nvm"
+                    . $NVM_DIR/nvm.sh
+                    nvm use $NODE_VERSION
+                    yarn install
                 '''
             }
         }
 
-        stage('Run Lint & Tests') {
+        stage('Build Android APK') {
             steps {
                 sh '''
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                nvm use $NODE_VERSION
-
-                yarn lint
-                yarn test || echo "Tests failed, but continuing build"
-                '''
-            }
-        }
-
-        stage('Build Android') {
-            steps {
-                sh '''
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                nvm use $NODE_VERSION
-                
-                cd android
-                ./gradlew clean assembleDebug
+                    export NVM_DIR="$WORKSPACE/.nvm"
+                    . $NVM_DIR/nvm.sh
+                    nvm use $NODE_VERSION
+                    cd android
+                    ./gradlew assembleRelease
                 '''
             }
         }
 
         stage('Archive APK') {
             steps {
-                archiveArtifacts artifacts: '**/app/build/outputs/apk/debug/app-debug.apk', fingerprint: true
+                archiveArtifacts artifacts: 'android/app/build/outputs/apk/release/app-release.apk', allowEmptyArchive: false
             }
         }
     }
