@@ -73,4 +73,7 @@ pipeline {
 
     post {
         always {
-            echo "Build completed. Cleaning up if
+            echo 'Build completed. Cleaning up if needed.'
+        }
+    }
+}
