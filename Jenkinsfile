@@ -5,9 +5,8 @@ pipeline {
         NODE_VERSION = "18.20.7"
         YARN_VERSION = "3.6.4"
         NODE_DIR = "${WORKSPACE}/.node"
-        PATH = "${NODE_DIR}/bin:${PATH}"
-        ANDROID_HOME = "/path/to/android/sdk" // Replace with actual Android SDK path if available
-        PATH = "${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin:${PATH}"
+        ANDROID_HOME = "/home/ext_rmadan_vecv_in/android-sdk"
+        PATH = "${NODE_DIR}/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/cmdline-tools/latest/bin:${PATH}"
     }
 
     stages {
@@ -47,6 +46,15 @@ pipeline {
             }
         }
 
+        stage('Create local.properties') {
+            steps {
+                sh '''
+                    echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
+                    cat android/local.properties
+                '''
+            }
+        }
+
         stage('Build Android APK') {
             steps {
                 sh '''
@@ -55,11 +63,14 @@ pipeline {
                 '''
             }
         }
+
+        stage('Archive APK') {
+            steps {
+                archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/app-debug.apk', fingerprint: true
+            }
+        }
     }
 
     post {
         always {
-            echo "Build completed. Cleaning up if needed."
-        }
-    }
-}
+            echo "Build completed. Cleaning up if
