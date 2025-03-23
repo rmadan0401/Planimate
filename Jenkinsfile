@@ -2,25 +2,28 @@ pipeline {
   agent any
 
   environment {
-    NVM_DIR = '/home/ext_rmadan_vecv_in/.nvm'
+    NVM_DIR = "/home/ext_rmadan_vecv_in/.nvm"
+    NODE_VERSION = "18.19.1"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        git credentialsId: 'github-credentials', url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main'
+        git url: 'https://github.com/rmadan0401/Planimate.git', branch: 'main', credentialsId: 'github-credentials'
       }
     }
     
-    stage('Install Node & Yarn') {
+    stage('Setup Node & Yarn') {
       steps {
         sh '''
-          export NVM_DIR="$NVM_DIR"
-          [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
-          nvm use 18.20.7
+          export NVM_DIR=$NVM_DIR
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm install $NODE_VERSION
+          nvm use $NODE_VERSION
           node -v
-          npm -v
-          yarn -v || npm install -g yarn
+          npm install -g yarn
+          yarn set version 3.6.4
+          yarn -v
         '''
       }
     }
@@ -28,9 +31,9 @@ pipeline {
     stage('Install Dependencies') {
       steps {
         sh '''
-          export NVM_DIR="$NVM_DIR"
-          [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
-          nvm use 18.20.7
+          export NVM_DIR=$NVM_DIR
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use $NODE_VERSION
           yarn install
         '''
       }
@@ -39,10 +42,11 @@ pipeline {
     stage('Build Android') {
       steps {
         sh '''
-          export NVM_DIR="$NVM_DIR"
-          [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
-          nvm use 18.20.7
-          yarn android:build  // Replace with your actual build command
+          export NVM_DIR=$NVM_DIR
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm use $NODE_VERSION
+          cd android
+          ./gradlew assembleDebug
         '''
       }
     }
