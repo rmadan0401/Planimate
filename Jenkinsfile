@@ -17,7 +17,7 @@ pipeline {
       steps {
         sh '''
           export NVM_DIR=$NVM_DIR
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
           nvm install $NODE_VERSION
           nvm use $NODE_VERSION
           node -v
@@ -32,7 +32,7 @@ pipeline {
       steps {
         sh '''
           export NVM_DIR=$NVM_DIR
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
           nvm use $NODE_VERSION
           yarn install
         '''
@@ -43,7 +43,7 @@ pipeline {
       steps {
         sh '''
           export NVM_DIR=$NVM_DIR
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
           nvm use $NODE_VERSION
           cd android
           ./gradlew assembleDebug
