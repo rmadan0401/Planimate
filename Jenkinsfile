@@ -56,13 +56,22 @@ pipeline {
         }
 
         stage('Build Android APK') {
-            steps {
-                sh '''
-                    cd android
-                    ./gradlew assembleDebug
-                '''
-            }
-        }
+    steps {
+        sh '''
+            cd android
+            ./gradlew clean
+            cd ..
+            
+            yarn react-native config
+            yarn start --reset-cache &
+            sleep 5
+            
+            cd android
+            ./gradlew assembleDebug --no-daemon --stacktrace
+        '''
+    }
+}
+
 
         stage('Archive APK') {
             steps {
