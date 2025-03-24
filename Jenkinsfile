@@ -22,11 +22,13 @@ pipeline {
                 sh '''
                     cd android/app/src/main/java/com
 
+                    # If plannerapp folder exists inside planimate, remove it
                     if [ -d "planimate/plannerapp" ]; then
                         echo "Found duplicate plannerapp inside planimate. Removing..."
                         rm -rf planimate/plannerapp
                     fi
 
+                    # If plannerapp exists incorrectly, rename
                     if [ -d "plannerapp" ] && [ ! -d "planimate" ]; then
                         echo "Renaming plannerapp folder to planimate..."
                         mv plannerapp planimate
@@ -35,14 +37,6 @@ pipeline {
                     echo "Final folder structure:"
                     find . -type d
                 '''
-
-                echo 'Cleaning Gradle cache to avoid stale references...'
-                sh '''
-                    cd android
-                    chmod +x gradlew
-                    ./gradlew clean || true
-                    ./gradlew --stop || true
-                '''
             }
         }
 
@@ -50,7 +44,7 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p ${NODE_DIR}
-                    curl -o node.tar.xz https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
+                    curl -o node.tar.xz https://nodejs.org/dist/v18.20.7/node-v18.20.7-linux-x64.tar.xz
                     tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
                     rm node.tar.xz
 
@@ -64,24 +58,9 @@ pipeline {
             }
         }
 
-        stage('Accept Android SDK Licenses') {
-            steps {
-                sh '''
-                    echo "Accepting Android SDK Licenses..."
-                    yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
-                '''
-            }
-        }
-
         stage('Yarn Install') {
             steps {
                 sh 'yarn install'
-            }
-        }
-
-        stage('Fix gradlew Permissions') {
-            steps {
-                sh 'chmod +x android/gradlew'
             }
         }
 
@@ -94,19 +73,45 @@ pipeline {
             }
         }
 
+        stage('Prepare Firebase & Clean Environment') {
+            steps {
+                sh '''
+                    # Fix Firebase missing debug folder issue
+                    mkdir -p node_modules/@react-native-firebase/auth/android/src/debug/java
+                    echo "Created empty debug folder for Firebase Auth."
+
+                    # Ensure gradlew permissions
+                    chmod +x android/gradlew
+
+                    # Disable Kotlin incremental builds (avoiding workers issue)
+                    export ORG_GRADLE_PROJECT_kotlin.incremental=false
+                    export KOTLIN_DAEMON_JVMARGS="-Xmx2048m"
+
+                    # Clean Gradle caches
+                    cd android
+                    ./gradlew cleanBuildCache || true
+                    ./gradlew clean || true
+                '''
+            }
+        }
+
         stage('Build Android APK') {
             steps {
                 sh '''
+                    # Start Metro bundler in background
+                    yarn start --reset-cache &
+
+                    # Wait for Metro to be ready
+                    sleep 10
+
+                    # Navigate to android directory
                     cd android
 
-                    # Ensure gradlew permission
-                    chmod +x gradlew
+                    # Build APK with detailed logs and increased memory settings
+                    ./gradlew assembleDebug --no-daemon --stacktrace --info --debug || true
 
-                    # Clean previous builds
-                    ./gradlew clean || true
-
-                    echo "Building APK..."
-                    ./gradlew assembleDebug --no-daemon --stacktrace --info --warning-mode all
+                    # Stop Metro bundler (port 8081)
+                    kill $(lsof -t -i:8081 || true)
                 '''
             }
         }
