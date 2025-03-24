@@ -22,13 +22,11 @@ pipeline {
                 sh '''
                     cd android/app/src/main/java/com
 
-                    # If plannerapp folder exists inside planimate, remove it
                     if [ -d "planimate/plannerapp" ]; then
                         echo "Found duplicate plannerapp inside planimate. Removing..."
                         rm -rf planimate/plannerapp
                     fi
 
-                    # If plannerapp exists incorrectly, rename
                     if [ -d "plannerapp" ] && [ ! -d "planimate" ]; then
                         echo "Renaming plannerapp folder to planimate..."
                         mv plannerapp planimate
@@ -41,13 +39,9 @@ pipeline {
                 echo 'Cleaning Gradle cache to avoid stale references...'
                 sh '''
                     cd android
-
-                    # Fix gradlew permissions
                     chmod +x gradlew
-
-                    # Clean Gradle build cache
-                    ./gradlew clean
-                    ./gradlew --stop
+                    ./gradlew clean || true
+                    ./gradlew --stop || true
                 '''
             }
         }
@@ -56,7 +50,7 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p ${NODE_DIR}
-                    curl -o node.tar.xz https://nodejs.org/dist/v18.20.7/node-v18.20.7-linux-x64.tar.xz
+                    curl -o node.tar.xz https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
                     tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
                     rm node.tar.xz
 
@@ -66,6 +60,15 @@ pipeline {
                     corepack enable
                     corepack prepare yarn@${YARN_VERSION} --activate
                     yarn -v
+                '''
+            }
+        }
+
+        stage('Accept Android SDK Licenses') {
+            steps {
+                sh '''
+                    echo "Accepting Android SDK Licenses..."
+                    yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
                 '''
             }
         }
@@ -94,26 +97,16 @@ pipeline {
         stage('Build Android APK') {
             steps {
                 sh '''
-                    # Start Metro bundler in background
-                    yarn start --reset-cache &
-
-                    # Wait for Metro to be ready
-                    sleep 10
-
-                    # Navigate to android directory
                     cd android
 
                     # Ensure gradlew permission
                     chmod +x gradlew
 
                     # Clean previous builds
-                    ./gradlew clean
+                    ./gradlew clean || true
 
-                    # Build APK with detailed logs
-                    ./gradlew assembleDebug --no-daemon --stacktrace --info --debug || true
-
-                    # Stop Metro bundler (port 8081)
-                    kill $(lsof -t -i:8081 || true)
+                    echo "Building APK..."
+                    ./gradlew assembleDebug --no-daemon --stacktrace --info --warning-mode all
                 '''
             }
         }
