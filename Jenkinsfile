@@ -18,34 +18,28 @@ pipeline {
 
         stage('Fix Package Folder Structure') {
             steps {
-                echo 'Checking and fixing folder structure if required...'
+                echo 'Checking and fixing folder structure...'
                 sh '''
                     cd android/app/src/main/java/com
 
-                    # If plannerapp folder exists inside planimate, remove it
+                    # Remove duplicate plannerapp folder if exists
                     if [ -d "planimate/plannerapp" ]; then
-                        echo "Found duplicate plannerapp inside planimate. Removing..."
                         rm -rf planimate/plannerapp
                     fi
 
-                    # If plannerapp exists incorrectly, rename
+                    # Rename incorrect folder
                     if [ -d "plannerapp" ] && [ ! -d "planimate" ]; then
-                        echo "Renaming plannerapp folder to planimate..."
                         mv plannerapp planimate
                     fi
 
-                    echo "Final folder structure:"
+                    echo "Folder structure after fix:"
                     find . -type d
                 '''
 
-                echo 'Cleaning Gradle cache to avoid stale references...'
+                echo 'Cleaning Gradle cache...'
                 sh '''
                     cd android
-
-                    # Fix gradlew permissions
                     chmod +x gradlew
-
-                    # Clean Gradle build cache
                     ./gradlew clean
                     ./gradlew --stop
                 '''
@@ -56,7 +50,7 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p ${NODE_DIR}
-                    curl -o node.tar.xz https://nodejs.org/dist/v18.20.7/node-v18.20.7-linux-x64.tar.xz
+                    curl -o node.tar.xz https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
                     tar -xf node.tar.xz --strip-components=1 -C ${NODE_DIR}
                     rm node.tar.xz
 
@@ -76,21 +70,9 @@ pipeline {
             }
         }
 
-        stage('Fix gradlew Permissions & Firebase Issue') {
+        stage('Fix gradlew Permissions') {
             steps {
-                sh '''
-                    # Fix gradlew permissions
-                    chmod +x android/gradlew
-
-                    # Fix Firebase empty debug folder issue
-                    mkdir -p node_modules/@react-native-firebase/auth/android/src/debug/java
-                    echo "Created empty debug folder for Firebase Auth."
-
-                    # Clean Gradle caches
-                    cd android
-                    ./gradlew cleanBuildCache || true
-                    ./gradlew clean || true
-                '''
+                sh 'chmod +x android/gradlew'
             }
         }
 
@@ -103,43 +85,55 @@ pipeline {
             }
         }
 
+        stage('Firebase Auth Fix') {
+            steps {
+                echo 'Creating empty debug folder for Firebase Auth...'
+                sh '''
+                    mkdir -p node_modules/@react-native-firebase/auth/android/src/debug/java
+                    echo "Created empty debug folder for Firebase Auth."
+                '''
+            }
+        }
+
         stage('Build Android APK') {
             steps {
                 sh '''
-                    # Start Metro bundler in background
+                    # Start Metro bundler
                     yarn start --reset-cache &
-
-                    # Wait for Metro to be ready
                     sleep 10
 
-                    # Navigate to android directory
                     cd android
-
-                    # Ensure gradlew permission
                     chmod +x gradlew
 
-                    # Build APK with memory + kotlin flags
+                    # Disable incremental Kotlin & Build
                     ./gradlew assembleDebug \
                         -Porg.gradle.jvmargs="-Xmx2048m" \
                         -Pkotlin.incremental=false \
-                        --no-daemon --stacktrace --info --debug || true
+                        --no-daemon --stacktrace --info --debug
 
-                    # Stop Metro bundler (port 8081)
+                    # Stop Metro bundler
                     kill $(lsof -t -i:8081 || true)
+
+                    # List APKs
+                    echo "APK generated:"
+                    ls -l app/build/outputs/apk/debug/
                 '''
             }
         }
 
         stage('Archive APK') {
             steps {
-                archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/app-debug.apk', fingerprint: true
+                archiveArtifacts artifacts: 'android/app/build/outputs/apk/debug/*.apk', fingerprint: true
             }
         }
     }
 
     post {
         always {
-            echo 'Build completed. Cleaning up if needed.'
+            echo 'Pipeline finished!'
+        }
+        failure {
+            echo 'Pipeline failed! Check logs!'
         }
     }
 }
