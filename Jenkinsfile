@@ -21,12 +21,28 @@ pipeline {
                 echo 'Checking and fixing folder structure if required...'
                 sh '''
                     cd android/app/src/main/java/com
-                    if [ -d "plannerapp" ]; then
-                        echo "Renaming plannerapp folder to planimate"
-                        mv plannerapp planimate
-                    else
-                        echo "Folder structure is correct. No action needed."
+
+                    # If plannerapp folder exists inside planimate, remove it
+                    if [ -d "planimate/plannerapp" ]; then
+                        echo "Found duplicate plannerapp inside planimate. Removing..."
+                        rm -rf planimate/plannerapp
                     fi
+
+                    # If plannerapp exists incorrectly
+                    if [ -d "plannerapp" ] && [ ! -d "planimate" ]; then
+                        echo "Renaming plannerapp folder to planimate..."
+                        mv plannerapp planimate
+                    fi
+
+                    echo "Final folder structure:"
+                    find . -type d
+                '''
+
+                echo 'Cleaning Gradle cache to avoid stale references...'
+                sh '''
+                    cd android
+                    ./gradlew clean
+                    ./gradlew --stop
                 '''
             }
         }
