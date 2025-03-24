@@ -56,22 +56,28 @@ pipeline {
         }
 
         stage('Build Android APK') {
-    steps {
-        sh '''
-            cd android
-            ./gradlew clean
-            cd ..
-            
-            yarn react-native config
-            yarn start --reset-cache &
-            sleep 5
-            
-            cd android
-            ./gradlew assembleDebug --no-daemon --stacktrace
-        '''
-    }
-}
+            steps {
+                sh '''
+                    # Start Metro bundler in background
+                    yarn start --reset-cache &
 
+                    # Wait for Metro to be ready
+                    sleep 10
+
+                    # Navigate to android directory
+                    cd android
+
+                    # Clean previous builds
+                    ./gradlew clean
+
+                    # Build APK
+                    ./gradlew assembleDebug --no-daemon --stacktrace --info
+
+                    # Stop Metro bundler (port 8081)
+                    kill $(lsof -t -i:8081 || true)
+                '''
+            }
+        }
 
         stage('Archive APK') {
             steps {
