@@ -37,6 +37,18 @@ pipeline {
                     echo "Final folder structure:"
                     find . -type d
                 '''
+
+                echo 'Cleaning Gradle cache to avoid stale references...'
+                sh '''
+                    cd android
+
+                    # Fix gradlew permissions
+                    chmod +x gradlew
+
+                    # Clean Gradle build cache
+                    ./gradlew clean
+                    ./gradlew --stop
+                '''
             }
         }
 
@@ -64,33 +76,29 @@ pipeline {
             }
         }
 
-        stage('Create local.properties') {
+        stage('Fix gradlew Permissions & Firebase Issue') {
             steps {
                 sh '''
-                    echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
-                    cat android/local.properties
-                '''
-            }
-        }
-
-        stage('Prepare Firebase & Clean Environment') {
-            steps {
-                sh '''
-                    # Fix Firebase missing debug folder issue
-                    mkdir -p node_modules/@react-native-firebase/auth/android/src/debug/java
-                    echo "Created empty debug folder for Firebase Auth."
-
-                    # Ensure gradlew permissions
+                    # Fix gradlew permissions
                     chmod +x android/gradlew
 
-                    # Disable Kotlin incremental builds (avoiding workers issue)
-                    export ORG_GRADLE_PROJECT_kotlin.incremental=false
-                    export KOTLIN_DAEMON_JVMARGS="-Xmx2048m"
+                    # Fix Firebase empty debug folder issue
+                    mkdir -p node_modules/@react-native-firebase/auth/android/src/debug/java
+                    echo "Created empty debug folder for Firebase Auth."
 
                     # Clean Gradle caches
                     cd android
                     ./gradlew cleanBuildCache || true
                     ./gradlew clean || true
+                '''
+            }
+        }
+
+        stage('Create local.properties') {
+            steps {
+                sh '''
+                    echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
+                    cat android/local.properties
                 '''
             }
         }
@@ -107,8 +115,14 @@ pipeline {
                     # Navigate to android directory
                     cd android
 
-                    # Build APK with detailed logs and increased memory settings
-                    ./gradlew assembleDebug --no-daemon --stacktrace --info --debug || true
+                    # Ensure gradlew permission
+                    chmod +x gradlew
+
+                    # Build APK with memory + kotlin flags
+                    ./gradlew assembleDebug \
+                        -Porg.gradle.jvmargs="-Xmx2048m" \
+                        -Pkotlin.incremental=false \
+                        --no-daemon --stacktrace --info --debug || true
 
                     # Stop Metro bundler (port 8081)
                     kill $(lsof -t -i:8081 || true)
