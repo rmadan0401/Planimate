@@ -1,8 +1,10 @@
 apply plugin: "com.android.application"
-// Removed 'com.google.gms.google-services' plugin since it's not needed in your pipeline.
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+
+// Add this line to define the variable globally
+ext.enableProguardInReleaseBuilds = true
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -40,11 +42,11 @@ android {
         }
         release {
             signingConfig signingConfigs.release
-            minifyEnabled enableProguardInReleaseBuilds
+            // Fixed this line ↓↓↓
+            minifyEnabled rootProject.ext.enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
-
 }
 
 dependencies {
