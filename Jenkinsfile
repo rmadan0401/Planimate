@@ -109,8 +109,8 @@ pipeline {
                     # Clean previous builds
                     ./gradlew clean
 
-                    # Build APK
-                    ./gradlew assembleDebug --no-daemon --stacktrace --info
+                    # Build APK with detailed logs
+                    ./gradlew assembleDebug --no-daemon --stacktrace --info --debug || true
 
                     # Stop Metro bundler (port 8081)
                     kill $(lsof -t -i:8081 || true)
