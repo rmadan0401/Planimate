@@ -28,7 +28,7 @@ pipeline {
                         rm -rf planimate/plannerapp
                     fi
 
-                    # If plannerapp exists incorrectly
+                    # If plannerapp exists incorrectly, rename
                     if [ -d "plannerapp" ] && [ ! -d "planimate" ]; then
                         echo "Renaming plannerapp folder to planimate..."
                         mv plannerapp planimate
@@ -41,6 +41,11 @@ pipeline {
                 echo 'Cleaning Gradle cache to avoid stale references...'
                 sh '''
                     cd android
+
+                    # Fix gradlew permissions
+                    chmod +x gradlew
+
+                    # Clean Gradle build cache
                     ./gradlew clean
                     ./gradlew --stop
                 '''
@@ -97,6 +102,9 @@ pipeline {
 
                     # Navigate to android directory
                     cd android
+
+                    # Ensure gradlew permission
+                    chmod +x gradlew
 
                     # Clean previous builds
                     ./gradlew clean
