@@ -16,6 +16,21 @@ pipeline {
             }
         }
 
+        stage('Fix Package Folder Structure') {
+            steps {
+                echo 'Checking and fixing folder structure if required...'
+                sh '''
+                    cd android/app/src/main/java/com
+                    if [ -d "plannerapp" ]; then
+                        echo "Renaming plannerapp folder to planimate"
+                        mv plannerapp planimate
+                    else
+                        echo "Folder structure is correct. No action needed."
+                    fi
+                '''
+            }
+        }
+
         stage('Install Node & Yarn Locally') {
             steps {
                 sh '''
